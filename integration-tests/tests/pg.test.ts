@@ -2775,7 +2775,7 @@ test.serial('test mode string for timestamp with timezone', async (t) => {
 	// 2.1 Notice that postgres will return the date in UTC, but it is exactly the same
 	t.deepEqual(result, [{ id: 1, timestamp: '2022-01-01 02:00:00.123456+00' }]);
 
-	// 3. Select as raw query and checke that values are the same
+	// 3. Select as raw query and check that values are the same
 	const result2 = await db.execute<{
 		id: number;
 		timestamp_string: string;
@@ -2817,7 +2817,7 @@ test.serial('test mode date for timestamp with timezone', async (t) => {
 	// 2.1 Notice that postgres will return the date in UTC, but it is exactly the same
 	t.deepEqual(result, [{ id: 1, timestamp: timestampString }]);
 
-	// 3. Select as raw query and checke that values are the same
+	// 3. Select as raw query and check that values are the same
 	const result2 = await db.execute<{
 		id: number;
 		timestamp_string: string;
@@ -2865,7 +2865,7 @@ test.serial('test mode string for timestamp with timezone in UTC timezone', asyn
 	// 2.1 Notice that postgres will return the date in UTC, but it is exactly the same
 	t.deepEqual(result, [{ id: 1, timestamp: '2022-01-01 02:00:00.123456+00' }]);
 
-	// 3. Select as raw query and checke that values are the same
+	// 3. Select as raw query and check that values are the same
 	const result2 = await db.execute<{
 		id: number;
 		timestamp_string: string;
@@ -2914,7 +2914,7 @@ test.serial('test mode string for timestamp with timezone in different timezone'
 
 	t.deepEqual(result, [{ id: 1, timestamp: '2022-01-01 00:00:00.123456-10' }]);
 
-	// 3. Select as raw query and checke that values are the same
+	// 3. Select as raw query and check that values are the same
 	const result2 = await db.execute<{
 		id: number;
 		timestamp_string: string;
@@ -3021,6 +3021,49 @@ test.serial('timestamp timezone', async (t) => {
 	// check that the timestamps are set correctly for non default times
 	t.assert(Math.abs(users[1]!.updatedAt.getTime() - date.getTime()) < 2000);
 	t.assert(Math.abs(users[1]!.createdAt.getTime() - date.getTime()) < 2000);
+});
+
+test.serial('timestamp in placeholders on insert', async (t) => {
+	const { db } = t.context;
+
+	const datesTable = pgTable('dates', {
+		id: serial('id').primaryKey(),
+		timestamp: timestamp('timestamp', { precision: 3 }).notNull(),
+		timestampString: timestamp('timestamp_string', { precision: 3, mode: 'string' }).notNull(),
+	});
+
+	db.execute(sql`drop table if exists ${datesTable}`);
+
+	db.execute(sql`
+		create table ${datesTable} (
+		id serial primary key,
+		timestamp timestamp(3) not null,
+		timestamp_string timestamp(3) not null
+		)
+	`);
+
+	const date = new Date();
+	const prepared = db.insert(datesTable).values({
+		timestamp: sql.placeholder('date'),
+		timestampString: sql.placeholder('date2'),
+	}).prepare('prepared');
+
+	await prepared.execute({
+		date: datesTable.timestamp.mapToDriverValue(date),
+		date2: date.toISOString(),
+	});
+
+	const result = await db.select().from(datesTable);
+
+	t.deepEqual(result, [
+		{
+			id: 1,
+			timestamp: date,
+			timestampString: date.toISOString().replace('T', ' ').replace('Z', ''),
+		},
+	]);
+
+	db.execute(sql`drop table if exists ${datesTable}`);
 });
 
 test.serial('transaction', async (t) => {

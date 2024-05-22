@@ -198,7 +198,11 @@ export class SQL<T = unknown> implements SQLWrapper {
 			}
 
 			if (is(chunk, Param)) {
-				const mappedValue = (chunk.value === null) ? null : chunk.encoder.mapToDriverValue(chunk.value);
+                const mappedValue = (chunk.value === null)
+                    ? null
+                    : is(chunk.value, Placeholder)
+                        ? chunk.value
+                        : chunk.encoder.mapToDriverValue(chunk.value);
 
 				if (is(mappedValue, SQL)) {
 					return this.buildQueryFromSourceParams([mappedValue], config);
